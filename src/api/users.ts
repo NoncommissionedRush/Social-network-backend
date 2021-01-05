@@ -4,7 +4,6 @@ import User, { IUser } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import config from "config";
-import { serialize } from "v8";
 const router = express.Router();
 
 // @route   POST api/users

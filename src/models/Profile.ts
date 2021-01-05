@@ -12,6 +12,7 @@ export interface IProfile extends Document {
     facebook?: string;
     instagram?: string;
   };
+  experience?: object[];
 }
 
 const profileSchema: Schema = new Schema({
@@ -21,6 +22,7 @@ const profileSchema: Schema = new Schema({
   website: { type: String },
   skills: { type: [String] },
   social: { type: Object },
+  experience: { type: [Object] },
 });
 
 const Profile: Model<any> = model("profile", profileSchema);
