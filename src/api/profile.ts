@@ -1,9 +1,9 @@
 import express, { Request, Response } from "express";
 import auth from "../middleware/authmiddleware";
-import Profile, { IProfile } from "../models/Profile";
+import Profile, { IProfile, IExperience } from "../models/Profile";
 import { check, validationResult } from "express-validator";
 import User from "../models/User";
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 const router = express.Router();
 
 //@route    POST api/profile
@@ -31,7 +31,7 @@ router.post(
           .map((skill: string) => skill.trim());
       if (social) profileFields.social = social;
 
-      let profile: IProfile = await Profile.findOne({
+      let profile = await Profile.findOne({
         user: req.user.id,
       }).populate("user", ["name"]);
 
@@ -132,32 +132,20 @@ router.delete("/me", auth, async (req: Request, res: Response) => {
 });
 
 //@route    PUT api/profile/experience
-//@desc     get user profile
+//@desc     add experience to profile
 //@access   private
 router.put(
   "/experience",
   [
     auth,
-    (check("title").notEmpty().withMessage("Title is required"),
+    check("title").notEmpty().withMessage("Title is required"),
     check("company").notEmpty().withMessage("Company is required"),
-    check("from").notEmpty().withMessage("From date is required")),
+    check("from").notEmpty().withMessage("From date is required"),
   ],
   async (req: Request, res: Response) => {
-    const errors = validationResult(res);
-
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).send({ errors: errors.array() });
-    }
-
-    interface Experience extends mongoose.Document {
-      _id: Schema.Types.ObjectId;
-      title: string;
-      company: string;
-      location: string;
-      from: Date;
-      to: Date;
-      current: boolean;
-      description: string;
     }
 
     const {
@@ -168,9 +156,9 @@ router.put(
       to,
       current,
       description,
-    }: Experience = req.body;
+    } = req.body;
 
-    const newExp = {
+    const newExp: IExperience = {
       _id: new mongoose.Types.ObjectId(),
       title,
       company,
@@ -182,11 +170,11 @@ router.put(
     };
 
     try {
-      const profile: IProfile = await Profile.findOne({ user: req.user.id });
+      const profile = await Profile.findOne({ user: req.user.id });
 
-      profile.experience?.unshift(newExp);
+      profile?.experience?.unshift(newExp);
 
-      await profile.save();
+      await profile?.save();
 
       res.send(profile);
     } catch (err) {
@@ -195,5 +183,30 @@ router.put(
     }
   }
 );
+
+// @route    PUT api/profile/experience/:expID
+// @desc     remove experience from profile
+// @access   private
+router.put("/experience/:expID", auth, async (req: Request, res: Response) => {
+  try {
+    const expID = mongoose.Types.ObjectId(req.params.expID);
+    const profile = await Profile.findOneAndUpdate(
+      { user: req.user.id },
+      {
+        $pull: {
+          experience: {
+            _id: expID,
+          },
+        },
+      },
+      { returnOriginal: false }
+    );
+
+    res.send(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
 
 module.exports = router;

@@ -1,7 +1,18 @@
-import mongoose, { model, Document, Model, Schema } from "mongoose";
+import mongoose, { model, Document, Model, Schema, Types } from "mongoose";
 import { IUser } from "./User";
 
-export interface IProfile extends Document {
+export interface IExperience {
+  _id: Types.ObjectId;
+  title: string;
+  company: string;
+  location?: string;
+  from: Date;
+  to?: Date;
+  current?: boolean;
+  description?: string;
+}
+
+export interface IProfile {
   user: IUser["_id"];
   name?: string;
   status?: string;
@@ -12,8 +23,10 @@ export interface IProfile extends Document {
     facebook?: string;
     instagram?: string;
   };
-  experience?: object[];
+  experience?: IExperience[];
 }
+
+interface IProfileDoc extends IProfile, Document {}
 
 const profileSchema: Schema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: "user" },
@@ -22,9 +35,9 @@ const profileSchema: Schema = new Schema({
   website: { type: String },
   skills: { type: [String] },
   social: { type: Object },
-  experience: { type: [Object] },
+  experience: { type: Array },
 });
 
-const Profile: Model<any> = model("profile", profileSchema);
+const Profile: Model<IProfileDoc> = model("profile", profileSchema);
 
 export default Profile;
