@@ -1,9 +1,9 @@
 import express, { Request, Response } from "express";
 import auth from "../middleware/authmiddleware";
-import Profile, { IProfile, IExperience } from "../models/Profile";
+import Profile, { IProfile, IExperience, IProfileDoc } from "../models/Profile";
 import { check, validationResult } from "express-validator";
 import User from "../models/User";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 const router = express.Router();
 
 //@route    POST api/profile
@@ -21,7 +21,9 @@ router.post(
     try {
       const { status, website, skills, social } = req.body;
 
-      const profileFields: Partial<IProfile> = { user: req.user.id };
+      const profileFields: Partial<IProfile> = {
+        user: mongoose.Types.ObjectId(req.user.id),
+      };
 
       if (status) profileFields.status = status;
       if (website) profileFields.website = website;
@@ -46,7 +48,11 @@ router.post(
       } else {
         profile = new Profile(profileFields);
         await profile.save();
-        return res.send(profile);
+        const returnProfile = await Profile.findById(
+          profile.id
+        ).populate("user", ["name"]);
+
+        return res.send(returnProfile);
       }
     } catch (error) {
       console.error(error.message);
@@ -60,7 +66,9 @@ router.post(
 //@access   public
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const profiles: Array<IProfile> = await Profile.find().populate("user");
+    const profiles: Array<IProfile> = await Profile.find().populate("user", [
+      "name",
+    ]);
     res.send(profiles);
   } catch (err) {
     console.error(err.message);
@@ -184,29 +192,33 @@ router.put(
   }
 );
 
-// @route    PUT api/profile/experience/:expID
+// @route    DELETE api/profile/experience/:expID
 // @desc     remove experience from profile
 // @access   private
-router.put("/experience/:expID", auth, async (req: Request, res: Response) => {
-  try {
-    const expID = mongoose.Types.ObjectId(req.params.expID);
-    const profile = await Profile.findOneAndUpdate(
-      { user: req.user.id },
-      {
-        $pull: {
-          experience: {
-            _id: expID,
+router.delete(
+  "/experience/:expID",
+  auth,
+  async (req: Request, res: Response) => {
+    try {
+      const expID = mongoose.Types.ObjectId(req.params.expID);
+      const profile = await Profile.findOneAndUpdate(
+        { user: req.user.id },
+        {
+          $pull: {
+            experience: {
+              _id: expID,
+            },
           },
         },
-      },
-      { returnOriginal: false }
-    );
+        { returnOriginal: false }
+      );
 
-    res.send(profile);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+      res.send(profile);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send("Server error");
+    }
   }
-});
+);
 
 module.exports = router;

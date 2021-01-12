@@ -1,8 +1,10 @@
-import mongoose, { model, Document, Model, Schema, Types } from "mongoose";
+import { model, Document, Model, Schema, Types } from "mongoose";
 import { IUser } from "./User";
 
+type ID = Types.ObjectId;
+
 export interface IExperience {
-  _id: Types.ObjectId;
+  _id: ID;
   title: string;
   company: string;
   location?: string;
@@ -13,7 +15,7 @@ export interface IExperience {
 }
 
 export interface IProfile {
-  user: IUser["_id"];
+  user: ID | IUser;
   name?: string;
   status?: string;
   website?: string;
@@ -26,10 +28,10 @@ export interface IProfile {
   experience?: IExperience[];
 }
 
-interface IProfileDoc extends IProfile, Document {}
+export interface IProfileDoc extends IProfile, Document {}
 
 const profileSchema: Schema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: "user" },
+  user: { type: Types.ObjectId, ref: "user" },
   name: { type: String },
   status: { type: String, required: true },
   website: { type: String },
