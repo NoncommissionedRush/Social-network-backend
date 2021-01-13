@@ -13,7 +13,7 @@ interface IComment {
 export interface IPost {
   user: ID | IUser;
   body: string;
-  likes: IUser[];
+  likes: string[];
   comments: IComment[];
   date: Date;
 }

@@ -179,4 +179,51 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
+//@route    POST api/posts/like/:postID
+//@desc     like a post
+//@access   private
+router.post("/like/:postID", auth, async (req: Request, res: Response) => {
+  try {
+    const post = await Post.findById(req.params.postID);
+
+    if (post) {
+      if (post.likes.includes(req.user.id)) {
+        res.status(400).send({ msg: "Post already liked" });
+      } else {
+        post.likes.unshift(req.user.id);
+        await post.save();
+        res.send(post.likes);
+      }
+    } else {
+      res.status(404).send({ msg: "Post not found" });
+    }
+  } catch (err) {
+    if (err.kind === "ObjectId") {
+      return res.status(404).send({ msg: "Post not found" });
+    }
+    console.error(err);
+    res.status(500).send("Server error");
+  }
+});
+
+//@route    PUT api/posts/like/:postID
+//@desc     unlike a post
+//@access   private
+router.put("/like/:postID", auth, async (req: Request, res: Response) => {
+  try {
+    const post = await Post.findByIdAndUpdate(
+      req.params.postID,
+      { $pull: { likes: req.user.id } },
+      { returnOriginal: false }
+    );
+
+    if (!post) {
+      res.status(404).send({ msg: "Pot not found" });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
 module.exports = router;
