@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import auth from "../middleware/authmiddleware";
-import Post, { IPostDoc } from "../models/Post";
-import { Types } from "mongoose";
+import Post, { IPostDoc, IPost } from "../models/Post";
+import mongoose, { Types } from "mongoose";
 import { check, validationResult } from "express-validator";
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.post(
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      res.status(500).send(errors.array());
+      res.status(400).send(errors.array());
     }
 
     try {
@@ -55,18 +55,33 @@ router.put(
     }
 
     try {
-      const post = await Post.findOneAndUpdate(
-        { _id: req.params.postID },
-        { $set: { body: req.body.body } },
-        { new: true }
-      );
+      type WithUser<obj, key extends keyof obj> = Omit<obj, key> &
+        {
+          [T in key]: Exclude<obj[T], Types.ObjectId>;
+        };
+
+      const post = (await Post.findOne({
+        _id: req.params.postID,
+      }).populate("user", ["name"])) as WithUser<IPostDoc, "user">;
 
       if (!post) {
-        res.status(400).send({ msg: "No post found" });
+        res.status(404).send({ msg: "No post found" });
       } else {
-        res.send(post);
+        if (String(post.user.id) !== req.user.id) {
+          res
+            .status(401)
+            .send({ msg: "User not authorized to edit this post" });
+        } else {
+          post.body = req.body.body;
+          await post.save();
+
+          res.send(post);
+        }
       }
     } catch (err) {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({ msg: "No post found" });
+      }
       console.error(err);
       res.status(500).send("Server error");
     }
@@ -78,14 +93,28 @@ router.put(
 //@access   private
 router.delete("/post/:postID", auth, async (req: Request, res: Response) => {
   try {
-    const post = await Post.findByIdAndDelete(req.params.postID);
+    // const post = await Post.findByIdAndDelete(req.params.postID);
+    const post = await Post.findOne({
+      _id: req.params.postID,
+    });
 
     if (!post) {
-      res.status(400).send({ msg: "No post found" });
+      res.status(404).send({ msg: "No post found" });
     } else {
-      res.send(post);
+      if (String(post.user) !== req.user.id) {
+        res
+          .status(401)
+          .send({ msg: "User not authorized to delete this post" });
+      } else {
+        await post.remove();
+
+        res.send("Post deleted");
+      }
     }
   } catch (err) {
+    if (err.kind === "ObjectId") {
+      return res.status(404).send({ msg: "No post found" });
+    }
     console.error(err);
     res.status(500).send("Server error");
   }
@@ -103,7 +132,7 @@ router.get("/post/:postID", async (req: Request, res: Response) => {
     if (post) {
       res.send(post);
     } else {
-      res.status(400).send({ msg: "No post found" });
+      res.status(404).send({ msg: "No post found" });
     }
   } catch (err) {
     console.error(err);
@@ -116,14 +145,19 @@ router.get("/post/:postID", async (req: Request, res: Response) => {
 //@access   public
 router.get("/user/:userID", async (req: Request, res: Response) => {
   try {
-    const posts = await Post.find({ user: req.params.userID });
+    const posts = await Post.find({ user: req.params.userID }).sort({
+      date: -1,
+    });
 
     if (!posts) {
-      res.status(400).send({ msg: "No posts found" });
+      res.status(404).send({ msg: "No posts found" });
     } else {
       res.send(posts);
     }
   } catch (err) {
+    if (err.kind === "ObjectId") {
+      return res.status(404).send({ msg: "No posts found" });
+    }
     console.error(err);
     res.status(500).send("Server error");
   }
@@ -134,7 +168,9 @@ router.get("/user/:userID", async (req: Request, res: Response) => {
 //@access   public
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const posts = await Post.find({}).populate("user", ["name"]);
+    const posts = await Post.find({})
+      .populate("user", ["name"])
+      .sort({ date: -1 });
 
     res.send(posts);
   } catch (err) {
