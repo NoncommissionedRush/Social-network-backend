@@ -3,7 +3,7 @@ import auth from "../middleware/authmiddleware";
 import Profile, { IProfile, IExperience, IProfileDoc } from "../models/Profile";
 import { check, validationResult } from "express-validator";
 import User from "../models/User";
-import mongoose, { Types } from "mongoose";
+import { Types } from "mongoose";
 const router = express.Router();
 
 //@route    POST api/profile
@@ -22,7 +22,7 @@ router.post(
       const { status, website, skills, social } = req.body;
 
       const profileFields: Partial<IProfile> = {
-        user: mongoose.Types.ObjectId(req.user.id),
+        user: Types.ObjectId(req.user.id),
       };
 
       if (status) profileFields.status = status;
@@ -48,11 +48,9 @@ router.post(
       } else {
         profile = new Profile(profileFields);
         await profile.save();
-        const returnProfile = await Profile.findById(
-          profile.id
-        ).populate("user", ["name"]);
+        await profile.populate({ path: "user", select: "name" }).execPopulate();
 
-        return res.send(returnProfile);
+        return res.send(profile);
       }
     } catch (error) {
       console.error(error.message);
@@ -167,7 +165,7 @@ router.put(
     } = req.body;
 
     const newExp: IExperience = {
-      _id: new mongoose.Types.ObjectId(),
+      _id: new Types.ObjectId(),
       title,
       company,
       location,
@@ -200,7 +198,7 @@ router.delete(
   auth,
   async (req: Request, res: Response) => {
     try {
-      const expID = mongoose.Types.ObjectId(req.params.expID);
+      const expID = Types.ObjectId(req.params.expID);
       const profile = await Profile.findOneAndUpdate(
         { user: req.user.id },
         {

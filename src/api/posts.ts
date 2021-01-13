@@ -31,17 +31,65 @@ router.post(
 
       await post.save();
 
-      const returnPost = await Post.findById(post.id).populate("user", [
-        "name",
-      ]);
+      await post.populate({ path: "user", select: "name" }).execPopulate();
 
-      res.send(returnPost);
+      res.send(post);
     } catch (error) {
       console.error(error);
       res.status(500).send("Server error");
     }
   }
 );
+
+//@route    PUT api/posts/post/:postID
+//@desc     edit post
+//@access   private
+router.put(
+  "/post/:postID",
+  [auth, check("body").notEmpty().withMessage("Post body is required")],
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      res.status(400).send(errors.array());
+    }
+
+    try {
+      const post = await Post.findOneAndUpdate(
+        { _id: req.params.postID },
+        { $set: { body: req.body.body } },
+        { new: true }
+      );
+
+      if (!post) {
+        res.status(400).send({ msg: "No post found" });
+      } else {
+        res.send(post);
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Server error");
+    }
+  }
+);
+
+//@route    DELETE api/posts/post/:postID
+//@desc     delete post by post ID
+//@access   private
+router.delete("/post/:postID", auth, async (req: Request, res: Response) => {
+  try {
+    const post = await Post.findByIdAndDelete(req.params.postID);
+
+    if (!post) {
+      res.status(400).send({ msg: "No post found" });
+    } else {
+      res.send(post);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error");
+  }
+});
 
 //@route    GET api/posts/post/:postID
 //@desc     get specific post by post ID

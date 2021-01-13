@@ -2,12 +2,6 @@ import jwt from "jsonwebtoken";
 import config from "config";
 import { Request, Response, NextFunction } from "express";
 
-// export interface RequestCustom extends Request {
-//   user?: {
-//     id: string;
-//   };
-// }
-
 function auth(req: Request, res: Response, next: NextFunction) {
   interface TokenInterface {
     user: {
