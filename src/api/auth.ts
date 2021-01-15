@@ -11,15 +11,15 @@ const router = express.Router();
 // @route   GET api/auth
 // @desc    get authenticated user data
 // @access  protected
-router.get("/", auth, async (req: Request, res: Response) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    res.send(user);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send({ msg: "Server error" });
-  }
-});
+// router.get("/", auth, async (req: Request, res: Response) => {
+//   try {
+//     const user = await User.findById(req.user.id).select("-password");
+//     res.send(user);
+//   } catch (error) {
+//     console.error(error.message);
+//     res.status(500).send({ msg: "Server error" });
+//   }
+// });
 
 // @route   POST api/auth
 // @desc    login user and get token
