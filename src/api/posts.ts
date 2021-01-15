@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import auth from "../middleware/authmiddleware";
-import Post, { IPostDoc, IPost } from "../models/Post";
-import mongoose, { Types } from "mongoose";
+import Post, { IPostDoc, IComment } from "../models/Post";
+import { Types } from "mongoose";
 import { check, validationResult } from "express-validator";
 const router = express.Router();
 
@@ -55,14 +55,13 @@ router.put(
     }
 
     try {
-      type WithUser<obj, key extends keyof obj> = Omit<obj, key> &
-        {
-          [T in key]: Exclude<obj[T], Types.ObjectId>;
-        };
-
       const post = (await Post.findOne({
         _id: req.params.postID,
-      }).populate("user", ["name"])) as WithUser<IPostDoc, "user">;
+      }).populate("user", ["name"])) as WithUser<
+        IPostDoc,
+        "user",
+        Types.ObjectId
+      >;
 
       if (!post) {
         res.status(404).send({ msg: "No post found" });
@@ -209,7 +208,7 @@ router.post("/like/:postID", auth, async (req: Request, res: Response) => {
 //@route    PUT api/posts/like/:postID
 //@desc     unlike a post
 //@access   private
-router.put("/like/:postID", auth, async (req: Request, res: Response) => {
+router.put("/unlike/:postID", auth, async (req: Request, res: Response) => {
   try {
     const post = await Post.findByIdAndUpdate(
       req.params.postID,
@@ -219,11 +218,90 @@ router.put("/like/:postID", auth, async (req: Request, res: Response) => {
 
     if (!post) {
       res.status(404).send({ msg: "Pot not found" });
+    } else {
+      res.send(post);
     }
   } catch (err) {
+    if (err.kind === "ObjectId") {
+      return res.status(404).send({ msg: "Post not found" });
+    }
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
+
+//@route    POST api/posts/comment/:postID
+//@desc     comment on a post
+//@access   private
+router.post(
+  "/comment/:postID",
+  [auth, check("body").notEmpty().withMessage("Comment body required")],
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).send(errors.array());
+    }
+    try {
+      const { body } = req.body;
+      const comment: IComment = {
+        id: new Types.ObjectId(),
+        user: req.user.id,
+        body: body,
+        likes: [],
+        date: new Date(),
+      };
+
+      const post = await Post.findById(req.params.postID);
+
+      if (!post) {
+        return res.status(404).send({ msg: "Post not found" });
+      } else {
+        post.comments.unshift(comment);
+
+        await post.save();
+      }
+
+      res.send(post);
+    } catch (err) {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({ msg: "Post not found" });
+      }
+      console.error(err);
+      res.status(500).send("Server error");
+    }
+  }
+);
+
+//@route    DELETE api/posts/comment/:postID/:commentID
+//@desc     delete comment
+//@access   private
+router.delete(
+  "/comment/:postID/:commentID",
+  auth,
+  async (req: Request, res: Response) => {
+    try {
+      const commentID = Types.ObjectId(req.params.commentID);
+      const post = await Post.findByIdAndUpdate(
+        req.params.postID,
+        {
+          $pull: { comments: { user: req.user.id, id: commentID } },
+        },
+        { returnOriginal: false }
+      );
+
+      if (!post) {
+        return res.status(404).send({ msg: "Post not found" });
+      } else {
+        res.send(post);
+      }
+    } catch (err) {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({ msg: "Post not found" });
+      }
+      console.error(err);
+      res.status(500).send("Server error");
+    }
+  }
+);
 
 module.exports = router;

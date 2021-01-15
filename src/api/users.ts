@@ -29,7 +29,7 @@ router.post(
     let { name, email, password } = req.body;
 
     try {
-      let user: IUser | null = await User.findOne({ email });
+      let user = (await User.findOne({ email })) as IUser;
 
       if (user) {
         // if the user exist send status and error message with same structure as above

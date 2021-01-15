@@ -3,8 +3,9 @@ import { IUser } from "./User";
 
 type ID = Types.ObjectId;
 
-interface IComment {
-  user: ID | IUser;
+export interface IComment {
+  id: ID;
+  user: string;
   body: string;
   likes: IUser[];
   date: Date;
